@@ -43,6 +43,11 @@ public class SimpleFPSPlayer : MonoBehaviour
     public float crouchBobSpeed = 6f;
     public float bobAmount = 0.05f;
 
+    [Header("Player Animations (Clips Only)")]
+    public AnimationClip idleClip;
+    public AnimationClip walkClip;
+    public AnimationClip sprintClip;
+
     private CharacterController controller;
     private float verticalVelocity;
     private float xRotation = 0f;
@@ -52,11 +57,12 @@ public class SimpleFPSPlayer : MonoBehaviour
 
     private bool isCrouching = false;
     private float cameraTargetY;
-    private float cameraSmoothVelocity;
     private float bobTimer;
     private float defaultCamY;
 
     private float baseSprintSpeed;
+
+    private Animation anim; // legacy animation component
 
     void Start()
     {
@@ -67,6 +73,18 @@ public class SimpleFPSPlayer : MonoBehaviour
         cameraTargetY = defaultCamY;
 
         baseSprintSpeed = sprintSpeed;
+
+        // Setup Animation component
+        anim = gameObject.AddComponent<Animation>();
+        if (idleClip != null) anim.AddClip(idleClip, "Idle");
+        if (walkClip != null) anim.AddClip(walkClip, "Walk");
+        if (sprintClip != null) anim.AddClip(sprintClip, "Sprint");
+
+        if (idleClip != null)
+        {
+            anim.clip = idleClip;
+            anim.Play("Idle");
+        }
     }
 
     void Update()
@@ -140,6 +158,30 @@ public class SimpleFPSPlayer : MonoBehaviour
 
         ApplyHeadbob(isMoving, sprinting);
         AnimateCameraCrouch();
+
+        // Play animations
+        HandleAnimations(isMoving, sprinting);
+    }
+
+    void HandleAnimations(bool isMoving, bool isSprinting)
+    {
+        if (anim == null) return;
+
+        if (!isMoving)
+        {
+            if (idleClip != null && !anim.IsPlaying("Idle"))
+                anim.CrossFade("Idle");
+        }
+        else if (isSprinting)
+        {
+            if (sprintClip != null && !anim.IsPlaying("Sprint"))
+                anim.CrossFade("Sprint");
+        }
+        else
+        {
+            if (walkClip != null && !anim.IsPlaying("Walk"))
+                anim.CrossFade("Walk");
+        }
     }
 
     void HandleInteract()
@@ -187,7 +229,6 @@ public class SimpleFPSPlayer : MonoBehaviour
         }
         else
         {
-            // Reset Y smoothly when idle
             Vector3 localPos = cameraTransform.localPosition;
             localPos.y = Mathf.Lerp(localPos.y, cameraTargetY, Time.deltaTime * 8f);
             cameraTransform.localPosition = localPos;
