@@ -7,6 +7,8 @@ public class EnemyChaseThreeSideFOVNoRigidbody : MonoBehaviour
     public Transform player;             
     public Animation anim;               
     public AudioSource attackSound;      
+    public JumpScareSystem jumpScare; // drag your JumpScareSystem in Inspector
+
 
     [Header("Animation Clips (Optional)")]
     public AnimationClip walkAnimation;  
@@ -160,6 +162,7 @@ public class EnemyChaseThreeSideFOVNoRigidbody : MonoBehaviour
             attackSound.Play();
 
         Debug.Log("Attack finished! Place your code here.");
+        jumpScare.TriggerScare(); // call the jumpscare
 
         isAttacking = false;
     }
