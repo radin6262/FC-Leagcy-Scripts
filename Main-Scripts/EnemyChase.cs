@@ -164,6 +164,9 @@ public class EnemyChaseThreeSideFOVNoRigidbody : MonoBehaviour
         Debug.Log("Attack finished! Place your code here.");
         jumpScare.TriggerScare(); // call the jumpscare
 
+        // NEW: Hide this enemy after triggering jumpscare 
+        gameObject.SetActive(false);
+
         isAttacking = false;
     }
 

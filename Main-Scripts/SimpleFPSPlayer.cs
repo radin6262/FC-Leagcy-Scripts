@@ -4,30 +4,44 @@ using UnityEngine.UI;
 [RequireComponent(typeof(CharacterController))]
 public class SimpleFPSPlayer : MonoBehaviour
 {
-    public float bobamount = 0.5f;
+    [Header("Movement Settings")]
     public float walkSpeed = 6f;
     public float sprintSpeed = 10f;
     public float crouchSpeed = 3f;
     public float jumpHeight = 2f;
     public float mouseSensitivity = 2f;
     public float gravity = -9.81f;
-    public float interactDistance = 3f;
+
+    [Header("Stamina Settings")]
     public float stamina = 0.5f;
     public float maxStamina = 0.5f;
     public float staminaDrainRate = 1f;
     public float staminaRegenRate = 0.5f;
+
+    [Header("Crouch Settings")]
     public float crouchHeight = 1f;
     public float normalHeight = 2.5f;
+
+    [Header("Camera & UI")]
     public Transform cameraTransform;
     public LayerMask interactLayer;
+    public float interactDistance = 3f;
     public Text promptText;
     public Slider staminaBar;
     public CanvasGroup staminaBarCanvas;
     public Image staminaWarningImage;
+
+    [Header("Audio")]
     public AudioSource footstepAudioSource;
     public AudioClip[] footstepClips;
     public AudioSource breathingAudioSource;
     public AudioClip heavyBreathClip;
+
+    [Header("Headbob Settings")]
+    public float walkBobSpeed = 10f;
+    public float sprintBobSpeed = 14f;
+    public float crouchBobSpeed = 6f;
+    public float bobAmount = 0.05f;
 
     private CharacterController controller;
     private float verticalVelocity;
@@ -35,15 +49,24 @@ public class SimpleFPSPlayer : MonoBehaviour
     private float footstepTimer = 0.25f;
     private float stepInterval = 0.5f;
     private Vector3 move;
+
     private bool isCrouching = false;
     private float cameraTargetY;
     private float cameraSmoothVelocity;
+    private float bobTimer;
+    private float defaultCamY;
+
+    private float baseSprintSpeed;
 
     void Start()
     {
         controller = GetComponent<CharacterController>();
         Cursor.lockState = CursorLockMode.Locked;
-        cameraTargetY = cameraTransform.localPosition.y;
+
+        defaultCamY = cameraTransform.localPosition.y;
+        cameraTargetY = defaultCamY;
+
+        baseSprintSpeed = sprintSpeed;
     }
 
     void Update()
@@ -85,7 +108,7 @@ public class SimpleFPSPlayer : MonoBehaviour
             currentSpeed = sprintSpeed;
             stamina -= staminaDrainRate * Time.deltaTime;
         }
-        else if (!sprinting)
+        else
         {
             stamina += staminaRegenRate * Time.deltaTime;
         }
@@ -97,7 +120,7 @@ public class SimpleFPSPlayer : MonoBehaviour
         {
             isCrouching = !isCrouching;
             controller.height = isCrouching ? crouchHeight : normalHeight;
-            cameraTargetY = isCrouching ? 0.5f : 0.9f;
+            cameraTargetY = isCrouching ? defaultCamY * 0.6f : defaultCamY;
         }
 
         if (isCrouching) currentSpeed = crouchSpeed;
@@ -115,7 +138,7 @@ public class SimpleFPSPlayer : MonoBehaviour
         move.y = verticalVelocity;
         controller.Move(move * Time.deltaTime);
 
-        ApplyHeadbob(isMoving);
+        ApplyHeadbob(isMoving, sprinting);
         AnimateCameraCrouch();
     }
 
@@ -150,19 +173,31 @@ public class SimpleFPSPlayer : MonoBehaviour
         }
     }
 
-    void ApplyHeadbob(bool isMoving)
+    void ApplyHeadbob(bool isMoving, bool isSprinting)
     {
         if (controller.isGrounded && isMoving)
         {
-            float bobAmount = Mathf.Sin(Time.time * 10f) * bobamount;
-            cameraTransform.localPosition = new Vector3(0f, cameraTransform.localPosition.y + bobAmount, 0f);
+            float bobSpeed = isSprinting ? sprintBobSpeed : (isCrouching ? crouchBobSpeed : walkBobSpeed);
+            bobTimer += Time.deltaTime * bobSpeed;
+
+            float bobOffset = Mathf.Sin(bobTimer) * bobAmount;
+            Vector3 localPos = cameraTransform.localPosition;
+            localPos.y = Mathf.Lerp(localPos.y, cameraTargetY + bobOffset, Time.deltaTime * 8f);
+            cameraTransform.localPosition = localPos;
+        }
+        else
+        {
+            // Reset Y smoothly when idle
+            Vector3 localPos = cameraTransform.localPosition;
+            localPos.y = Mathf.Lerp(localPos.y, cameraTargetY, Time.deltaTime * 8f);
+            cameraTransform.localPosition = localPos;
+            bobTimer = 0f;
         }
     }
 
     void AnimateCameraCrouch()
     {
-        float newY = Mathf.SmoothDamp(cameraTransform.localPosition.y, cameraTargetY, ref cameraSmoothVelocity, 0.1f);
-        cameraTransform.localPosition = new Vector3(0f, newY, 0f);
+        // Smooth crouch handled inside ApplyHeadbob by cameraTargetY
     }
 
     void UpdateStaminaBar()
@@ -193,15 +228,12 @@ public class SimpleFPSPlayer : MonoBehaviour
             breathingAudioSource.clip = heavyBreathClip;
             breathingAudioSource.loop = true;
             breathingAudioSource.Play();
-            if (breathingAudioSource.isPlaying)
-            {
-                sprintSpeed -= 8f;
-            }
+            sprintSpeed = baseSprintSpeed * 0.5f; // temporary slowdown
         }
         else if (stamina > 0.1f && breathingAudioSource.isPlaying)
         {
             breathingAudioSource.Stop();
-            sprintSpeed = 19.5f;
+            sprintSpeed = baseSprintSpeed;
         }
     }
 }
